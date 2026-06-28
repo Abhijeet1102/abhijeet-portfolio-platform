@@ -1,20 +1,68 @@
 "use client";
 
+import { use, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, ExternalLink, Calendar, Target, Activity } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
 import Link from "next/link";
 import { Button } from "@/components/atoms/Button";
 
-export default function ProjectDetail({ params }: { params: { slug: string } }) {
+export default function ProjectDetail({ params }: { params: Promise<{ slug: string }> }) {
+  // Defensive unwrapping of Next.js 15 params promise
+  const resolvedParams = use(params);
+  const slug = resolvedParams?.slug || "";
+  
+  const [project, setProject] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!slug) return;
+    const fetchProject = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+        const res = await fetch(`${apiUrl}/projects/${slug}`);
+        const data = await res.json();
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Received project payload:", data);
+        }
+        
+        if (data.status === 'success' && data.data) {
+          setProject(data.data);
+        } else {
+          setError(data.message || "Project not found");
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to fetch project");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProject();
+  }, [slug]);
+
   const containerVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
   };
 
+  if (loading) {
+    return <div className="max-w-4xl mx-auto py-12 flex justify-center text-muted-foreground">Loading...</div>;
+  }
+
+  if (error || !project) {
+    return <div className="max-w-4xl mx-auto py-12 flex justify-center text-red-500">{error || "Project not found"}</div>;
+  }
+
+  // Defensive array fallback
+  const displayTags = project?.technologies?.length > 0 
+    ? project.technologies 
+    : (project?.tags || []);
+
   return (
     <motion.article 
-      className="max-w-4xl mx-auto py-8 flex flex-col gap-8"
+      className="max-w-4xl mx-auto py-8 flex flex-col gap-8 px-4 md:px-0"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -25,17 +73,24 @@ export default function ProjectDetail({ params }: { params: { slug: string } }) 
         </Link>
       </div>
 
-      <div className="aspect-video w-full bg-gradient-to-br from-blue-500/20 to-purple-600/20 border border-border rounded-2xl flex items-center justify-center relative overflow-hidden">
-        {/* Placeholder for real project images */}
-        <h1 className="text-4xl md:text-6xl font-bold opacity-30 absolute">{params.slug.toUpperCase()}</h1>
-      </div>
+      {project?.coverImage ? (
+        <div className="aspect-video w-full rounded-2xl overflow-hidden border border-border">
+          <img src={project.coverImage} alt={project?.title || ""} className="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <div className="aspect-video w-full bg-gradient-to-br from-blue-500/20 to-purple-600/20 border border-border rounded-2xl flex items-center justify-center relative overflow-hidden">
+          <h1 className="text-4xl md:text-6xl font-bold opacity-30 absolute">{(slug || "").toUpperCase()}</h1>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 capitalize">{params.slug.replace("-", " ")}</h1>
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 capitalize">
+            {project?.title || (slug || "").replace("-", " ")}
+          </h1>
           <div className="flex flex-wrap gap-2">
-            {["React", "Node.js", "MongoDB", "Stripe"].map(tech => (
-              <span key={tech} className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm font-medium">
+            {displayTags.map((tech: string, i: number) => (
+              <span key={`${tech}-${i}`} className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm font-medium">
                 {tech}
               </span>
             ))}
@@ -43,57 +98,68 @@ export default function ProjectDetail({ params }: { params: { slug: string } }) 
         </div>
         
         <div className="flex gap-4">
-          <Button asChild variant="outline">
-            <Link href="#" target="_blank">
-              <FaGithub className="w-4 h-4 mr-2" /> Source Code
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href="#" target="_blank">
-              <ExternalLink className="w-4 h-4 mr-2" /> Live Demo
-            </Link>
-          </Button>
+          {project?.githubRepository && (
+            <Button asChild variant="outline">
+              <Link href={project.githubRepository} target="_blank">
+                <FaGithub className="w-4 h-4 mr-2" /> Source Code
+              </Link>
+            </Button>
+          )}
+          {project?.liveDemo && (
+            <Button asChild>
+              <Link href={project.liveDemo} target="_blank">
+                <ExternalLink className="w-4 h-4 mr-2" /> Live Demo
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
         <div className="border border-border rounded-xl p-4 bg-card flex flex-col gap-1 text-center">
-          <span className="text-muted-foreground text-sm flex items-center justify-center gap-2"><Calendar className="w-4 h-4"/> Timeline</span>
-          <span className="font-semibold">3 Months</span>
+          <span className="text-muted-foreground text-sm flex items-center justify-center gap-2"><Target className="w-4 h-4"/> Category</span>
+          <span className="font-semibold">{project?.category || "General"}</span>
         </div>
         <div className="border border-border rounded-xl p-4 bg-card flex flex-col gap-1 text-center">
-          <span className="text-muted-foreground text-sm flex items-center justify-center gap-2"><Target className="w-4 h-4"/> Role</span>
-          <span className="font-semibold">Lead Developer</span>
+          <span className="text-muted-foreground text-sm flex items-center justify-center gap-2"><FaGithub className="w-4 h-4"/> Repo Stats</span>
+          <span className="font-semibold flex items-center justify-center gap-2">
+            ⭐ {project?.stargazersCount || 0} | 🍴 {project?.forksCount || 0}
+          </span>
         </div>
         <div className="border border-border rounded-xl p-4 bg-card flex flex-col gap-1 text-center">
           <span className="text-muted-foreground text-sm flex items-center justify-center gap-2"><Activity className="w-4 h-4"/> Status</span>
-          <span className="font-semibold text-green-500">Completed</span>
+          <span className="font-semibold text-green-500">{project?.status ? String(project.status).toUpperCase() : "UNKNOWN"}</span>
         </div>
       </div>
 
       <div className="prose prose-lg dark:prose-invert max-w-none mt-8">
         <h2>Overview</h2>
-        <p>
-          This is a detailed case study placeholder for the project. In the final version, this section will dynamically render Markdown or Rich Text directly from the MongoDB database created in Phase 5.
-        </p>
+        <p>{project?.fullDescription || project?.shortDescription || "No description provided."}</p>
         
-        <h2>The Challenge</h2>
-        <p>
-          Building scalable software involves navigating complex requirements. For this platform, the primary challenge was architecting a system that could handle high throughput while maintaining strict data consistency across microservices.
-        </p>
+        {project?.problemStatement && (
+          <>
+            <h2>The Challenge</h2>
+            <p>{project.problemStatement}</p>
+          </>
+        )}
         
-        <h2>The Solution & Architecture</h2>
-        <p>
-          We utilized a modern stack featuring Next.js for the frontend edge-caching and Node.js (Express) for the backend REST APIs. The database layer leverages MongoDB Atlas for horizontal scalability.
-        </p>
+        {project?.solution && (
+          <>
+            <h2>The Solution & Architecture</h2>
+            <p>{project.solution}</p>
+          </>
+        )}
 
-        <h2>Key Features</h2>
-        <ul>
-          <li>Real-time data synchronization using WebSockets.</li>
-          <li>Optimized media delivery via Cloudinary CDN.</li>
-          <li>Role-based Access Control (RBAC) supporting Admin, Editor, and Viewer tiers.</li>
-          <li>Integrated Stripe for seamless payment processing.</li>
-        </ul>
+        {project?.features && Array.isArray(project.features) && project.features.length > 0 && (
+          <>
+            <h2>Key Features</h2>
+            <ul>
+              {project.features.map((feature: string, idx: number) => (
+                <li key={idx}>{feature}</li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
     </motion.article>
   );
