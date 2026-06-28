@@ -1,0 +1,25 @@
+{
+  "name": "portfolio-platform",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.34.4",
+  "devDependencies": {
+    "@commitlint/cli": "^21.1.0",
+    "@commitlint/config-conventional": "^21.1.0",
+    "@types/node": "^26.0.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.8",
+    "turbo": "^2.10.0",
+    "typescript": "^6.0.3"
+  }
+}
