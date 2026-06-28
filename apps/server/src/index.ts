@@ -61,11 +61,20 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Routes
 app.use('/api/v1', v1Routes);
 
-// Health Check
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'success', message: 'Server is healthy' });
+// Root Health Check
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    service: 'Portfolio API',
+    environment: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
+  });
 });
 
+// Basic Health Check
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy' });
+});
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error(err.stack);
