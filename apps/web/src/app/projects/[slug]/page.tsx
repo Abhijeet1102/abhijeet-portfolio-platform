@@ -20,8 +20,25 @@ export default function ProjectDetail({ params }: { params: Promise<{ slug: stri
     if (!slug) return;
     const fetchProject = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-        const res = await fetch(`${apiUrl}/projects/${slug}`);
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const apiUrl = baseUrl.endsWith('/api/v1') ? baseUrl : `${baseUrl}/api/v1`;
+        const requestUrl = `${apiUrl}/projects/${slug}`;
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Fetching project from URL:", requestUrl);
+        }
+        
+        const res = await fetch(requestUrl);
+        
+        if (!res.ok) {
+          throw new Error(`API returned status: ${res.status}`);
+        }
+        
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("API returned non-JSON response");
+        }
+        
         const data = await res.json();
         
         if (process.env.NODE_ENV === 'development') {
